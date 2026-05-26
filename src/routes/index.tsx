@@ -7,9 +7,7 @@ import type { Session } from '../../db/schema'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
-export const Route = createFileRoute('/')({
-  component: SchedulerPage,
-})
+export const Route = createFileRoute('/')({\n  component: SchedulerPage,\n})
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6) // 6am–11pm
@@ -26,6 +24,61 @@ const CATEGORIES = {
 
 type Category = keyof typeof CATEGORIES
 
+// ── Date helpers ────────────────────────────────────────────────────────────
+
+function getMonday(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  return d
+}
+
+function formatWeekStart(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function parseLocalDate(str: string): Date {
+  const [y, m, d] = str.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function getWeekDates(weekStartStr: string): Date[] {
+  const start = parseLocalDate(weekStartStr)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start)
+    d.setDate(d.getDate() + i)
+    return d
+  })
+}
+
+function formatMonthRange(weekStartStr: string): string {
+  const dates = getWeekDates(weekStartStr)
+  const first = dates[0]
+  const last = dates[6]
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  if (first.getMonth() === last.getMonth()) {
+    return `${months[first.getMonth()]} ${first.getDate()}–${last.getDate()}, ${first.getFullYear()}`
+  }
+  return `${months[first.getMonth()]} ${first.getDate()} – ${months[last.getMonth()]} ${last.getDate()}, ${last.getFullYear()}`
+}
+
+function isToday(date: Date): boolean {
+  const now = new Date()
+  return (
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  )
+}
+
+// ── Score ────────────────────────────────────────────────────────────────────
+
 function balanceScore(sessions: Session[]): number {
   const total = sessions.reduce((s, x) => s + x.durationHours, 0)
   if (total === 0) return 0
@@ -35,6 +88,8 @@ function balanceScore(sessions: Session[]): number {
   const deviation = Object.values(counts).reduce((acc, v) => acc + Math.abs(v - ideal), 0)
   return Math.max(0, Math.round(100 - (deviation / total) * 100))
 }
+
+// ── ScoreRing ────────────────────────────────────────────────────────────────
 
 function ScoreRing({ score }: { score: number }) {
   const r = 36
@@ -57,16 +112,124 @@ function ScoreRing({ score }: { score: number }) {
   )
 }
 
+// ── UserSetup ────────────────────────────────────────────────────────────────
+
+function UserSetup({ onSetUser }: { onSetUser: (name: string) => void }) {
+  const [name, setName] = useState('')
+  const [knownUsers, setKnownUsers] = useState<string[]>([])
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('planner_users')
+      if (stored) setKnownUsers(JSON.parse(stored))
+    } catch {}
+  }, [])
+
+  const persist = (trimmed: string) => {
+    const updated = [...new Set([...knownUsers, trimmed])]
+    localStorage.setItem('planner_users', JSON.stringify(updated))
+    localStorage.setItem('planner_user', trimmed)
+    onSetUser(trimmed)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = name.trim()
+    if (!trimmed) return
+    persist(trimmed)
+  }
+
+  const AVATAR_GRADIENTS = [
+    'linear-gradient(135deg, #4f7cff 0%, #a855f7 100%)',
+    'linear-gradient(135deg, #f97316 0%, #ec4899 100%)',
+    'linear-gradient(135deg, #22c55e 0%, #4f7cff 100%)',
+    'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
+  ]
+
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#060b18' }}>
+      {/* Ambient glow */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden>
+        <div className="absolute -top-64 -left-64 w-[600px] h-[600px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(79,124,255,0.08) 0%, transparent 70%)' }} />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.07) 0%, transparent 70%)' }} />
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm px-4">
+        <div className="text-center mb-8">
+          <p className="text-xs font-bold tracking-[0.2em] mb-2" style={{ color: '#4f7cff' }}>WEEKLY PLANNER</p>
+          <h1 className="text-3xl font-black text-white">Study–Life Balance</h1>
+          <p className="text-slate-400 text-sm mt-2">Who's planning today?</p>
+        </div>
+
+        {knownUsers.length > 0 && (
+          <>
+            <div className="space-y-2 mb-5">
+              {knownUsers.map((user, idx) => (
+                <button
+                  key={user}
+                  onClick={() => persist(user)}
+                  className="w-full rounded-xl px-4 py-3 text-left text-white font-semibold border border-white/10 hover:border-blue-500/50 hover:bg-white/5 transition flex items-center gap-3"
+                  style={{ backgroundColor: '#0f172a' }}
+                >
+                  <span
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                    style={{ background: AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length] }}
+                  >
+                    {user[0].toUpperCase()}
+                  </span>
+                  <span>{user}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-xs text-slate-600 shrink-0">or create new</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+          </>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Enter your name"
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition text-base"
+          />
+          <button
+            type="submit"
+            disabled={!name.trim()}
+            className="w-full rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40 active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #4f7cff 0%, #a855f7 100%)' }}
+          >
+            Start Planning →
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── AddModal ─────────────────────────────────────────────────────────────────
+
 function AddModal({
   onClose,
   onAdd,
+  weekDates,
 }: {
   onClose: () => void
   onAdd: (data: { title: string; category: Category; day: number; startHour: number; durationHours: number }) => Promise<void>
+  weekDates: Date[]
 }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<Category>('study')
-  const [day, setDay] = useState(0)
+  const [day, setDay] = useState(() => {
+    const todayIdx = (new Date().getDay() + 6) % 7
+    return Math.min(todayIdx, 6)
+  })
   const [startHour, setStartHour] = useState(9)
   const [duration, setDuration] = useState(1)
   const [saving, setSaving] = useState(false)
@@ -78,6 +241,8 @@ function AddModal({
     await onAdd({ title: title.trim(), category, day, startHour, durationHours: duration })
     onClose()
   }
+
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -129,7 +294,14 @@ function AddModal({
               onChange={e => setDay(Number(e.target.value))}
               className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2.5 text-white focus:outline-none focus:border-blue-500"
             >
-              {DAYS.map((d, i) => <option key={d} value={i} className="bg-slate-900">{d}</option>)}
+              {DAYS.map((d, i) => {
+                const date = weekDates[i]
+                return (
+                  <option key={d} value={i} className="bg-slate-900">
+                    {d} {date ? `${months[date.getMonth()]} ${date.getDate()}` : ''}
+                  </option>
+                )
+              })}
             </select>
           </div>
           <div className="space-y-1">
@@ -180,12 +352,16 @@ function AddModal({
   )
 }
 
+// ── WeekGrid ─────────────────────────────────────────────────────────────────
+
 function WeekGrid({
   sessions,
   onDelete,
+  weekDates,
 }: {
   sessions: Session[]
   onDelete: (id: number) => void
+  weekDates: Date[]
 }) {
   const cellHeight = 48
 
@@ -196,14 +372,26 @@ function WeekGrid({
         <div className="grid border-b border-white/8" style={{ gridTemplateColumns: '56px repeat(7, 1fr)' }}>
           <div className="p-3" />
           {DAYS.map((d, i) => {
-            const today = (new Date().getDay() + 6) % 7
+            const date = weekDates[i]
+            const today = date ? isToday(date) : false
             return (
-              <div
-                key={d}
-                className="py-3 text-center text-xs font-bold tracking-widest uppercase"
-                style={{ color: today === i ? '#60a5fa' : '#475569' }}
-              >
-                {d}
+              <div key={d} className="py-3 flex flex-col items-center gap-1">
+                <span
+                  className="text-[10px] font-bold tracking-widest uppercase"
+                  style={{ color: today ? '#60a5fa' : '#475569' }}
+                >
+                  {d}
+                </span>
+                <span
+                  className="text-base font-bold w-8 h-8 flex items-center justify-center rounded-full"
+                  style={
+                    today
+                      ? { color: '#fff', backgroundColor: '#4f7cff' }
+                      : { color: '#64748b' }
+                  }
+                >
+                  {date?.getDate()}
+                </span>
               </div>
             )
           })}
@@ -228,7 +416,7 @@ function WeekGrid({
             </div>
           ))}
 
-          {/* Session blocks — absolutely positioned */}
+          {/* Session blocks */}
           {sessions
             .filter(s => s.startHour >= HOURS[0] && s.startHour <= HOURS[HOURS.length - 1])
             .map(s => {
@@ -265,6 +453,8 @@ function WeekGrid({
     </div>
   )
 }
+
+// ── Sidebar ──────────────────────────────────────────────────────────────────
 
 function Sidebar({ sessions }: { sessions: Session[] }) {
   const [mounted, setMounted] = useState(false)
@@ -359,21 +549,99 @@ function Sidebar({ sessions }: { sessions: Session[] }) {
   )
 }
 
+// ── SchedulerPage ─────────────────────────────────────────────────────────────
+
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg, #4f7cff 0%, #a855f7 100%)',
+  'linear-gradient(135deg, #f97316 0%, #ec4899 100%)',
+  'linear-gradient(135deg, #22c55e 0%, #4f7cff 100%)',
+  'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)',
+]
+
 function SchedulerPage() {
+  const [initialized, setInitialized] = useState(false)
+  const [userName, setUserName] = useState<string | null>(null)
+  const [knownUsers, setKnownUsers] = useState<string[]>([])
+  const [showUserMenu, setShowUserMenu] = useState(false)
+
+  const [weekStart, setWeekStart] = useState(() => formatWeekStart(getMonday(new Date())))
   const [sessions, setSessions] = useState<Session[]>([])
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const fetchSessions = useCallback(async () => {
-    const data = await getSessions()
-    setSessions(data)
-    setLoading(false)
+  // Bootstrap from localStorage
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('planner_user')
+      const storedUsers = localStorage.getItem('planner_users')
+      if (storedUser) setUserName(storedUser)
+      if (storedUsers) setKnownUsers(JSON.parse(storedUsers))
+    } catch {}
+    setInitialized(true)
   }, [])
 
-  useEffect(() => { fetchSessions() }, [fetchSessions])
+  const fetchSessions = useCallback(async () => {
+    if (!userName) return
+    setLoading(true)
+    const data = await getSessions({ data: { userName, weekStart } })
+    setSessions(data)
+    setLoading(false)
+  }, [userName, weekStart])
 
-  const handleAdd = async (data: { title: string; category: Category; day: number; startHour: number; durationHours: number }) => {
-    const session = await addSession({ data })
+  useEffect(() => {
+    if (userName) fetchSessions()
+  }, [fetchSessions])
+
+  // ── User management ──────────────────────────────────────────────────────
+
+  const handleSetUser = (name: string) => {
+    const updated = [...new Set([...knownUsers, name])]
+    setKnownUsers(updated)
+    setUserName(name)
+    setSessions([])
+    setLoading(true)
+  }
+
+  const handleSwitchUser = (name: string) => {
+    localStorage.setItem('planner_user', name)
+    const updated = [...new Set([...knownUsers, name])]
+    localStorage.setItem('planner_users', JSON.stringify(updated))
+    setKnownUsers(updated)
+    setUserName(name)
+    setSessions([])
+    setLoading(true)
+    setShowUserMenu(false)
+  }
+
+  const handleSignOut = () => {
+    localStorage.removeItem('planner_user')
+    setUserName(null)
+    setSessions([])
+    setShowUserMenu(false)
+  }
+
+  // ── Week navigation ──────────────────────────────────────────────────────
+
+  const shiftWeek = (delta: number) => {
+    setWeekStart(prev => {
+      const d = parseLocalDate(prev)
+      d.setDate(d.getDate() + delta * 7)
+      return formatWeekStart(d)
+    })
+  }
+
+  const goToCurrentWeek = () => setWeekStart(formatWeekStart(getMonday(new Date())))
+
+  const currentWeekStart = formatWeekStart(getMonday(new Date()))
+  const isCurrentWeek = weekStart === currentWeekStart
+  const weekDates = getWeekDates(weekStart)
+
+  // ── Session CRUD ─────────────────────────────────────────────────────────
+
+  const handleAdd = async (data: {
+    title: string; category: Category; day: number; startHour: number; durationHours: number
+  }) => {
+    const session = await addSession({ data: { ...data, userName: userName!, weekStart } })
     setSessions(prev => [...prev, session])
   }
 
@@ -381,6 +649,13 @@ function SchedulerPage() {
     setSessions(prev => prev.filter(s => s.id !== id))
     await deleteSession({ data: { id } })
   }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+
+  if (!initialized) return null
+  if (!userName) return <UserSetup onSetUser={handleSetUser} />
+
+  const avatarGradient = AVATAR_GRADIENTS[knownUsers.indexOf(userName) % AVATAR_GRADIENTS.length]
 
   return (
     <div className="min-h-screen text-white" style={{ backgroundColor: '#060b18' }}>
@@ -393,20 +668,110 @@ function SchedulerPage() {
       </div>
 
       <div className="relative max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
-        {/* Header */}
-        <header className="flex items-end justify-between mb-8">
+
+        {/* ── Header ── */}
+        <header className="flex items-end justify-between mb-6">
           <div>
             <p className="text-xs font-bold tracking-[0.2em] mb-1" style={{ color: '#4f7cff' }}>WEEKLY PLANNER</p>
             <h1 className="text-4xl font-black tracking-tight">Study–Life Balance</h1>
           </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #4f7cff 0%, #a855f7 100%)' }}
-          >
-            <span className="text-lg leading-none">+</span> Add Session
-          </button>
+
+          <div className="flex items-center gap-3">
+            {/* User badge + dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(v => !v)}
+                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white border border-white/10 hover:border-white/20 transition"
+                style={{ backgroundColor: '#0f172a' }}
+              >
+                <span
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                  style={{ background: avatarGradient }}
+                >
+                  {userName[0].toUpperCase()}
+                </span>
+                <span className="max-w-[120px] truncate">{userName}</span>
+                <span className="text-slate-500 text-xs ml-1">▾</span>
+              </button>
+
+              {showUserMenu && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-white/10 shadow-2xl z-40 overflow-hidden"
+                  style={{ backgroundColor: '#0f172a' }}
+                >
+                  {knownUsers.filter(u => u !== userName).length > 0 && (
+                    <>
+                      <div className="px-3 py-2 border-b border-white/8">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Switch to</p>
+                      </div>
+                      {knownUsers.filter(u => u !== userName).map((user, idx) => (
+                        <button
+                          key={user}
+                          onClick={() => handleSwitchUser(user)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-white hover:bg-white/5 transition text-left"
+                        >
+                          <span
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                            style={{ background: AVATAR_GRADIENTS[knownUsers.indexOf(user) % AVATAR_GRADIENTS.length] }}
+                          >
+                            {user[0].toUpperCase()}
+                          </span>
+                          <span className="truncate">{user}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  <div className="border-t border-white/8">
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-400 hover:bg-white/5 hover:text-white transition text-left"
+                    >
+                      <span className="text-lg leading-none">+</span>
+                      New user / Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 active:scale-95"
+              style={{ background: 'linear-gradient(135deg, #4f7cff 0%, #a855f7 100%)' }}
+            >
+              <span className="text-lg leading-none">+</span> Add Session
+            </button>
+          </div>
         </header>
+
+        {/* ── Week navigation ── */}
+        <div className="flex items-center gap-2 mb-5">
+          <button
+            onClick={() => shiftWeek(-1)}
+            className="w-8 h-8 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition flex items-center justify-center font-bold"
+            title="Previous week"
+          >
+            ‹
+          </button>
+          <span className="text-sm font-semibold text-white min-w-[196px] text-center tabular-nums">
+            {formatMonthRange(weekStart)}
+          </span>
+          <button
+            onClick={() => shiftWeek(1)}
+            className="w-8 h-8 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition flex items-center justify-center font-bold"
+            title="Next week"
+          >
+            ›
+          </button>
+          {!isCurrentWeek && (
+            <button
+              onClick={goToCurrentWeek}
+              className="ml-2 rounded-lg px-3 py-1.5 text-xs font-semibold border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition"
+            >
+              Today
+            </button>
+          )}
+        </div>
 
         {/* Category pills */}
         <div className="flex flex-wrap gap-2 mb-6">
@@ -426,12 +791,14 @@ function SchedulerPage() {
         <div className="flex gap-5 items-start">
           <div className="flex-1 min-w-0">
             {loading ? (
-              <div className="rounded-2xl border border-white/8 h-96 flex items-center justify-center text-slate-600"
-                style={{ backgroundColor: '#0a0f1e' }}>
+              <div
+                className="rounded-2xl border border-white/8 h-96 flex items-center justify-center text-slate-600"
+                style={{ backgroundColor: '#0a0f1e' }}
+              >
                 Loading schedule…
               </div>
             ) : (
-              <WeekGrid sessions={sessions} onDelete={handleDelete} />
+              <WeekGrid sessions={sessions} onDelete={handleDelete} weekDates={weekDates} />
             )}
             <p className="mt-2 text-xs text-center" style={{ color: '#334155' }}>Click any session block to remove it</p>
           </div>
@@ -440,7 +807,12 @@ function SchedulerPage() {
       </div>
 
       {showModal && (
-        <AddModal onClose={() => setShowModal(false)} onAdd={handleAdd} />
+        <AddModal onClose={() => setShowModal(false)} onAdd={handleAdd} weekDates={weekDates} />
+      )}
+
+      {/* Close user menu on outside click */}
+      {showUserMenu && (
+        <div className="fixed inset-0 z-30" onClick={() => setShowUserMenu(false)} />
       )}
     </div>
   )
