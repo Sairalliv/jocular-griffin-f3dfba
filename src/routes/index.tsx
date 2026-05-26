@@ -207,7 +207,7 @@ function UserSetup({ onSetUser }: { onSetUser: (name: string) => void }) {
             className="w-full rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40 active:scale-[0.98]"
             style={{ background: 'linear-gradient(135deg, #4f7cff 0%, #a855f7 100%)' }}
           >
-            Start Planning ->
+            Start Planning →
           </button>
         </form>
       </div>
