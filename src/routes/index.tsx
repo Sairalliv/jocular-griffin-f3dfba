@@ -753,7 +753,7 @@ function SchedulerPage() {
             className="w-8 h-8 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition flex items-center justify-center font-bold"
             title="Previous week"
           >
-            <
+            {'<'}
           </button>
           <span className="text-sm font-semibold text-white min-w-[196px] text-center tabular-nums">
             {formatMonthRange(weekStart)}
@@ -763,7 +763,7 @@ function SchedulerPage() {
             className="w-8 h-8 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition flex items-center justify-center font-bold"
             title="Next week"
           >
-            >
+            {'>'}
           </button>
           {!isCurrentWeek && (
             <button
