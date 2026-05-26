@@ -7,10 +7,12 @@ import type { Session } from '../../db/schema'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
-export const Route = createFileRoute('/')({\n  component: SchedulerPage,\n})
+export const Route = createFileRoute('/')({
+  component: SchedulerPage,
+})
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const HOURS = Array.from({ length: 18 }, (_, i) => i + 6) // 6am–11pm
+const HOURS = Array.from({ length: 18 }, (_, i) => i + 6) // 6am-11pm
 
 const CATEGORIES = {
   study:    { label: 'Study',    color: '#4f7cff' },
@@ -24,7 +26,7 @@ const CATEGORIES = {
 
 type Category = keyof typeof CATEGORIES
 
-// ── Date helpers ────────────────────────────────────────────────────────────
+// -- Date helpers ------------------------------------------------------------
 
 function getMonday(date: Date): Date {
   const d = new Date(date)
@@ -63,9 +65,9 @@ function formatMonthRange(weekStartStr: string): string {
   const last = dates[6]
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   if (first.getMonth() === last.getMonth()) {
-    return `${months[first.getMonth()]} ${first.getDate()}–${last.getDate()}, ${first.getFullYear()}`
+    return `${months[first.getMonth()]} ${first.getDate()}-${last.getDate()}, ${first.getFullYear()}`
   }
-  return `${months[first.getMonth()]} ${first.getDate()} – ${months[last.getMonth()]} ${last.getDate()}, ${last.getFullYear()}`
+  return `${months[first.getMonth()]} ${first.getDate()} - ${months[last.getMonth()]} ${last.getDate()}, ${last.getFullYear()}`
 }
 
 function isToday(date: Date): boolean {
@@ -77,7 +79,7 @@ function isToday(date: Date): boolean {
   )
 }
 
-// ── Score ────────────────────────────────────────────────────────────────────
+// -- Score --------------------------------------------------------------------
 
 function balanceScore(sessions: Session[]): number {
   const total = sessions.reduce((s, x) => s + x.durationHours, 0)
@@ -89,7 +91,7 @@ function balanceScore(sessions: Session[]): number {
   return Math.max(0, Math.round(100 - (deviation / total) * 100))
 }
 
-// ── ScoreRing ────────────────────────────────────────────────────────────────
+// -- ScoreRing ----------------------------------------------------------------
 
 function ScoreRing({ score }: { score: number }) {
   const r = 36
@@ -112,7 +114,7 @@ function ScoreRing({ score }: { score: number }) {
   )
 }
 
-// ── UserSetup ────────────────────────────────────────────────────────────────
+// -- UserSetup ----------------------------------------------------------------
 
 function UserSetup({ onSetUser }: { onSetUser: (name: string) => void }) {
   const [name, setName] = useState('')
@@ -159,7 +161,7 @@ function UserSetup({ onSetUser }: { onSetUser: (name: string) => void }) {
       <div className="relative z-10 w-full max-w-sm px-4">
         <div className="text-center mb-8">
           <p className="text-xs font-bold tracking-[0.2em] mb-2" style={{ color: '#4f7cff' }}>WEEKLY PLANNER</p>
-          <h1 className="text-3xl font-black text-white">Study–Life Balance</h1>
+          <h1 className="text-3xl font-black text-white">Study-Life Balance</h1>
           <p className="text-slate-400 text-sm mt-2">Who's planning today?</p>
         </div>
 
@@ -205,7 +207,7 @@ function UserSetup({ onSetUser }: { onSetUser: (name: string) => void }) {
             className="w-full rounded-xl py-3 text-sm font-bold text-white transition disabled:opacity-40 active:scale-[0.98]"
             style={{ background: 'linear-gradient(135deg, #4f7cff 0%, #a855f7 100%)' }}
           >
-            Start Planning →
+            Start Planning ->
           </button>
         </form>
       </div>
@@ -213,7 +215,7 @@ function UserSetup({ onSetUser }: { onSetUser: (name: string) => void }) {
   )
 }
 
-// ── AddModal ─────────────────────────────────────────────────────────────────
+// -- AddModal -----------------------------------------------------------------
 
 function AddModal({
   onClose,
@@ -344,7 +346,7 @@ function AddModal({
             className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white transition disabled:opacity-40"
             style={{ backgroundColor: CATEGORIES[category].color }}
           >
-            {saving ? 'Adding…' : 'Add Session'}
+            {saving ? 'Adding...' : 'Add Session'}
           </button>
         </div>
       </form>
@@ -352,7 +354,7 @@ function AddModal({
   )
 }
 
-// ── WeekGrid ─────────────────────────────────────────────────────────────────
+// -- WeekGrid -----------------------------------------------------------------
 
 function WeekGrid({
   sessions,
@@ -454,7 +456,7 @@ function WeekGrid({
   )
 }
 
-// ── Sidebar ──────────────────────────────────────────────────────────────────
+// -- Sidebar ------------------------------------------------------------------
 
 function Sidebar({ sessions }: { sessions: Session[] }) {
   const [mounted, setMounted] = useState(false)
@@ -534,13 +536,13 @@ function Sidebar({ sessions }: { sessions: Session[] }) {
         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Tips</p>
         <ul className="space-y-2">
           {[
-            { color: CATEGORIES.exercise.color, tip: '3–5h exercise/week' },
-            { color: CATEGORIES.rest.color,     tip: '7–8h sleep daily' },
+            { color: CATEGORIES.exercise.color, tip: '3-5h exercise/week' },
+            { color: CATEGORIES.rest.color,     tip: '7-8h sleep daily' },
             { color: CATEGORIES.social.color,   tip: 'Protect social time' },
             { color: CATEGORIES.study.color,    tip: 'Break study into 2h blocks' },
           ].map(({ color, tip }) => (
             <li key={tip} className="flex gap-2 text-xs text-slate-400">
-              <span style={{ color }}>●</span> {tip}
+              <span style={{ color }}>*</span> {tip}
             </li>
           ))}
         </ul>
@@ -549,7 +551,7 @@ function Sidebar({ sessions }: { sessions: Session[] }) {
   )
 }
 
-// ── SchedulerPage ─────────────────────────────────────────────────────────────
+// -- SchedulerPage -------------------------------------------------------------
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #4f7cff 0%, #a855f7 100%)',
@@ -592,7 +594,7 @@ function SchedulerPage() {
     if (userName) fetchSessions()
   }, [fetchSessions])
 
-  // ── User management ──────────────────────────────────────────────────────
+  // -- User management ------------------------------------------------------
 
   const handleSetUser = (name: string) => {
     const updated = [...new Set([...knownUsers, name])]
@@ -620,7 +622,7 @@ function SchedulerPage() {
     setShowUserMenu(false)
   }
 
-  // ── Week navigation ──────────────────────────────────────────────────────
+  // -- Week navigation ------------------------------------------------------
 
   const shiftWeek = (delta: number) => {
     setWeekStart(prev => {
@@ -636,7 +638,7 @@ function SchedulerPage() {
   const isCurrentWeek = weekStart === currentWeekStart
   const weekDates = getWeekDates(weekStart)
 
-  // ── Session CRUD ─────────────────────────────────────────────────────────
+  // -- Session CRUD ---------------------------------------------------------
 
   const handleAdd = async (data: {
     title: string; category: Category; day: number; startHour: number; durationHours: number
@@ -650,7 +652,7 @@ function SchedulerPage() {
     await deleteSession({ data: { id } })
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // -- Render ---------------------------------------------------------------
 
   if (!initialized) return null
   if (!userName) return <UserSetup onSetUser={handleSetUser} />
@@ -669,11 +671,11 @@ function SchedulerPage() {
 
       <div className="relative max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
 
-        {/* ── Header ── */}
+        {/* -- Header -- */}
         <header className="flex items-end justify-between mb-6">
           <div>
             <p className="text-xs font-bold tracking-[0.2em] mb-1" style={{ color: '#4f7cff' }}>WEEKLY PLANNER</p>
-            <h1 className="text-4xl font-black tracking-tight">Study–Life Balance</h1>
+            <h1 className="text-4xl font-black tracking-tight">Study-Life Balance</h1>
           </div>
 
           <div className="flex items-center gap-3">
@@ -691,7 +693,7 @@ function SchedulerPage() {
                   {userName[0].toUpperCase()}
                 </span>
                 <span className="max-w-[120px] truncate">{userName}</span>
-                <span className="text-slate-500 text-xs ml-1">▾</span>
+                <span className="text-slate-500 text-xs ml-1">v</span>
               </button>
 
               {showUserMenu && (
@@ -744,14 +746,14 @@ function SchedulerPage() {
           </div>
         </header>
 
-        {/* ── Week navigation ── */}
+        {/* -- Week navigation -- */}
         <div className="flex items-center gap-2 mb-5">
           <button
             onClick={() => shiftWeek(-1)}
             className="w-8 h-8 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition flex items-center justify-center font-bold"
             title="Previous week"
           >
-            ‹
+            <
           </button>
           <span className="text-sm font-semibold text-white min-w-[196px] text-center tabular-nums">
             {formatMonthRange(weekStart)}
@@ -761,7 +763,7 @@ function SchedulerPage() {
             className="w-8 h-8 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition flex items-center justify-center font-bold"
             title="Next week"
           >
-            ›
+            >
           </button>
           {!isCurrentWeek && (
             <button
@@ -795,7 +797,7 @@ function SchedulerPage() {
                 className="rounded-2xl border border-white/8 h-96 flex items-center justify-center text-slate-600"
                 style={{ backgroundColor: '#0a0f1e' }}
               >
-                Loading schedule…
+                Loading schedule...
               </div>
             ) : (
               <WeekGrid sessions={sessions} onDelete={handleDelete} weekDates={weekDates} />
