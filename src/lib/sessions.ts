@@ -1,14 +1,21 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { db } from '../../db/index.js'
+import { getDb } from '../../db/index.js'
 import { sessions } from '../../db/schema.js'
 import { eq, and } from 'drizzle-orm'
+import { getWebRequest } from '@tanstack/react-start/server'
+
+function getCloudflareEnv() {
+  const req = getWebRequest() as any
+  return req?.cloudflare?.env as { DB: D1Database }
+}
 
 export const getSessions = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) =>
     z.object({ userName: z.string(), weekStart: z.string() }).parse(data),
   )
   .handler(async ({ data }) => {
+    const db = getDb(getCloudflareEnv())
     return await db
       .select()
       .from(sessions)
@@ -29,6 +36,7 @@ const NewSessionSchema = z.object({
 export const addSession = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => NewSessionSchema.parse(data))
   .handler(async ({ data }) => {
+    const db = getDb(getCloudflareEnv())
     const result = await db
       .insert(sessions)
       .values({
@@ -47,6 +55,7 @@ export const addSession = createServerFn({ method: 'POST' })
 export const deleteSession = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => z.object({ id: z.number() }).parse(data))
   .handler(async ({ data }) => {
+    const db = getDb(getCloudflareEnv())
     await db.delete(sessions).where(eq(sessions.id, data.id))
     return { ok: true }
   })
